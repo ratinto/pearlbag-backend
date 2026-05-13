@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Product {
+  id              Int       @id @default(autoincrement())
+  sku             String    @unique
+  name            String
+  description     String?
+  price           Decimal   @db.Decimal(10, 2)
+  compareAtPrice  Decimal?  @map("compare_at_price") @db.Decimal(10, 2)
+  category        String
+  style           String
+  badge           String?
+  rating          Decimal   @default(0) @db.Decimal(2, 1)
+  reviewCount     Int       @default(0) @map("review_count")
+  stock           Int       @default(0)
+  material        String?
+  weight          String?
+  tags            String[]
+  colors          Json
+  details         String[]
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  orderItems      OrderItem[]
+  reviews         Review[]
+
+  @@index([category])
+  @@map("products")
+}
+
+enum PromoType {
+  percent
+  fixed
+  shipping
+}
+
+model PromoCode {
+  code      String     @id
+  type      PromoType
+  value     Decimal    @db.Decimal(10, 2)
+  label     String
+  minOrder  Decimal    @default(0) @map("min_order") @db.Decimal(10, 2)
+  active    Boolean    @default(true)
+  expiresAt DateTime?  @map("expires_at")
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  orders    Order[]
+
+  @@map("promo_codes")
+}
+
+enum OrderStatus {
+  pending
+  paid
+  shipped
+  delivered
+  cancelled
+}
+
+model Order {
+  id              String       @id @default(uuid()) @db.Uuid
+  orderNumber     String       @unique @map("order_number")
+  email           String
+  status          OrderStatus  @default(pending)
+  subtotal        Decimal      @db.Decimal(10, 2)
+  discount        Decimal      @default(0) @db.Decimal(10, 2)
+  shipping        Decimal      @default(0) @db.Decimal(10, 2)
+  tax             Decimal      @default(0) @db.Decimal(10, 2)
+  total           Decimal      @db.Decimal(10, 2)
+  promoCode       String?      @map("promo_code")
+  shippingMethod  String       @default("standard") @map("shipping_method")
+  paymentMethod   String       @default("card") @map("payment_method")
+  shippingAddress Json         @map("shipping_address")
+  billingAddress  Json?        @map("billing_address")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  items           OrderItem[]
+  promo           PromoCode?   @relation(fields: [promoCode], references: [code])
+
+  @@index([email])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           BigInt   @id @default(autoincrement())
+  orderId      String   @map("order_id") @db.Uuid
+  productId    Int      @map("product_id")
+  productName  String   @map("product_name")
+  colorName    String?  @map("color_name")
+  unitPrice    Decimal  @map("unit_price") @db.Decimal(10, 2)
+  quantity     Int
+  lineTotal    Decimal  @map("line_total") @db.Decimal(10, 2)
+
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model NewsletterSubscriber {
+  id           BigInt    @id @default(autoincrement())
+  email        String    @unique
+  subscribedAt DateTime  @default(now()) @map("subscribed_at")
+
+  @@map("newsletter_subscribers")
+}
+
+model Review {
+  id         BigInt   @id @default(autoincrement())
+  productId  Int      @map("product_id")
+  authorName String   @map("author_name")
+  rating     Int
+  title      String?
+  body       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("reviews")
+}
+
+model ContactMessage {
+  id        BigInt   @id @default(autoincrement())
+  email     String
+  name      String?
+  subject   String?
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contact_messages")
+}
